@@ -1,0 +1,51 @@
+---
+- name: "Copy files in targ_folder + chmod folder + chmod folder/*"
+  hosts: all
+  become: true
+  vars:
+    targ_folder: "/etc/sudoers.d"
+    files_perm: "0440"
+    folder_perm: "0750"
+    sudo_file: "/MY_ANSIBLE_HOME/my_sudo_file"
+    pbk_passfile: "pass.yml"
+
+  vars_files:
+    pbk_passfile: "pass.yml"
+    -  "{{ pbk_passfile }}"  # Inclusion du fichier contenant les mots de passe cryptés
+    
+  tasks:
+    - name: "Copy satadmin in /etc/sudoers.d"
+      ansible.builtin.copy:
+        src: "{{ sudo_file }}"
+        dest: "{{ targ_folder }}"
+        owner: root
+        group: root
+        mode: "{{ files_perm }}"
+
+    - name: "List files in target folder"
+      ansible.builtin.find:
+        path: "{{ targ_folder }}"
+        file_type: file
+        patterns: "*"
+      register: filelist
+
+    - name: "Change permissions in filelist from target folder"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: file
+        owner: root
+        group: root
+        mode: "{{ files_perm }}"
+      with_items: "{{ filelist.files }}"
+
+    - name: "Change folder permissions only (not recursively)"
+      ansible.builtin.file:
+        path: "{{ targ_folder }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ folder_perm }}"
+      
+    - name: "Check playbook status execution"
+      ansible.builtin.debug:
+        msg: "Playbook exécuté avec succès avec les mots de passe fournis."
